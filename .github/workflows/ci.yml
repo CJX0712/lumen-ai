@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Ollama (for optional live tests)
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          sleep 8
+          ollama pull llama3.2:1b || true
+          ollama pull nomic-embed-text || true
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Unit tests (mock backends, no GPU)
+        run: pytest -q -m "not live"
+
+      - name: Live integration (real Ollama, non-blocking)
+        run: pytest -q -m "live" || true

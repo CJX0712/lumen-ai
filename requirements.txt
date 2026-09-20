@@ -1,0 +1,12 @@
+# Lumen AI 运行依赖（与 pyproject.toml 保持一致）。
+# 生产部署请使用版本锁定的 requirements.lock.txt 以保证可复现。
+pydantic>=2.5
+pydantic-settings>=2.1
+fastapi>=0.110
+uvicorn[standard]>=0.27
+faiss-cpu>=1.7
+ollama>=0.1.0
+openai>=1.12
+typer>=0.12
+gradio>=4.0
+pypdf>=4.0
