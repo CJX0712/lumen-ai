@@ -1,0 +1,14 @@
+[
+  {
+    "question": "计算 (12 + 8) * 3 等于多少？",
+    "expect": "60"
+  },
+  {
+    "question": "现在 UTC 时间是几点？",
+    "expect": "UTC"
+  },
+  {
+    "question": "echo 一下这句话：Lumen 是模块化 AI 系统",
+    "expect": "模块化"
+  }
+]

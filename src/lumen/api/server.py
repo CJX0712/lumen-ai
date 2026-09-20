@@ -10,6 +10,8 @@ from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from ..observability import get_metrics
+
 
 class ChatReq(BaseModel):
     message: str
@@ -35,6 +37,10 @@ def create_app(container) -> FastAPI:
     @app.get("/health")
     def health():
         return {"status": "ok", "backend": container.settings.llm_backend}
+
+    @app.get("/metrics")
+    def metrics():
+        return get_metrics().snapshot()
 
     @app.post("/chat")
     def chat(req: ChatReq):

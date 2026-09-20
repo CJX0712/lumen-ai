@@ -5,6 +5,8 @@
 
 Lumen 不是从零自研模型，而是把成熟的开源组件（Ollama / FAISS / FastAPI / Pydantic / Typer / Gradio）用清晰的接口编排成一套 **RAG + Agent + Tools** 的完整 AI 应用平台。每个模块都有抽象接口与具体实现，可用 Mock 后端独立测试，无需 GPU 即可在干净环境中一键复现。
 
+**第二版新增（迈向「世界级」）**：可观测指标（`/metrics` + 透明 LLM 包装）、基于规则的可复现评测基准、多模态图片摄入（Vision→RAG）、扩展工具（联网搜索 / 受限文件读取）、一键模型引导脚本。
+
 ---
 
 ## 一、系统架构
@@ -14,11 +16,13 @@ Lumen 不是从零自研模型，而是把成熟的开源组件（Ollama / FAISS
    │
 编排层   智能体 Agent (ReAct: 思考→工具→观测→回答)
    │
-能力层   RAG 检索增强  ·  工具注册中心  ·  对话记忆
+能力层   RAG 检索增强  ·  工具注册中心  ·  对话记忆  ·  多模态视觉摄入
    │
-服务层   LLM 网关  ·  嵌入服务  ·  向量库(FAISS)
+服务层   LLM 网关  ·  嵌入服务  ·  向量库(FAISS)  ·  视觉语言模型
    │
 基础设施  配置 / 依赖注入 (Container)
+   │
+横切    可观测 (Metrics/日志)  ·  评测基准 (EvalHarness)
 ```
 
 ### 模块划分（单一职责）
@@ -30,15 +34,18 @@ Lumen 不是从零自研模型，而是把成熟的开源组件（Ollama / FAISS
 | `embeddings` | 文本向量化 | `BaseEmbedder.embed()` | ollama / Mock |
 | `vectorstore` | 向量检索 | `BaseVectorStore.upsert()/search()` | faiss-cpu |
 | `ingest` | 文档加载 + 分块 | `load_file()` / `chunk_text()` | 内置(txt/md/json/pdf) |
-| `rag` | RAG 管线编排 | `RAG.ingest()/query()` | 组合上述模块 |
+| `rag` | RAG 管线编排（含多模态摄入） | `RAG.ingest()/ingest_image()/query()` | 组合上述模块 |
 | `memory` | 滑动窗口对话记忆 | `BaseMemory.add()/get_context()` | 内置 |
-| `tools` | 工具注册与接口 | `BaseTool.run()` + `ToolRegistry` | 内置(计算器/时间/回声) |
+| `tools` | 工具注册与接口 | `BaseTool.run()` + `ToolRegistry` | 内置(计算器/时间/回声/搜索/读文件) |
 | `agent` | ReAct 智能体 | `Agent.run()` | 组合 llm/tools/memory |
-| `api` | FastAPI 服务 | `/chat` `/rag/*` `/agent/run` `/health` | fastapi/uvicorn |
-| `cli` | 命令行 | typer 子命令 | typer |
+| `multimodal` | 视觉语言模型（图片→文本） | `VisionLLM.caption()` | ollama(llava) / Mock |
+| `observability` | 指标采集 + 结构化日志 | `Metrics` / `MetricsWrapper` / `get_metrics()` | 内置 |
+| `eval` | 规则化评测基准 | `run_rag_eval()/run_agent_eval()/EvalReport` | 内置 |
+| `api` | FastAPI 服务 | `/chat` `/rag/*` `/agent/run` `/health` `/metrics` | fastapi/uvicorn |
+| `cli` | 命令行 | typer 子命令（含 eval/models/vision） | typer |
 | `ui` | Gradio Web 界面 | `launch()` | gradio |
 
-**调用关系**：`api/cli/ui → agent → {llm, memory, tools, rag}`；`rag → {ingest, embeddings, vectorstore, llm}`；`agent/tools → llm`。所有模块经 `config.Container` 装配，测试可 `container.override()` 注入 Mock。
+**调用关系**：`api/cli/ui → agent → {llm, memory, tools, rag}`；`rag → {ingest, embeddings, vectorstore, llm, multimodal}`；`agent/tools → llm`。所有模块经 `config.Container` 装配，测试可 `container.override()` 注入 Mock。`observability` 通过 `MetricsWrapper` 透明包裹 LLM，零侵入采集延迟/错误/近似 token，并暴露 `/metrics`。
 
 ---
 
@@ -95,7 +102,12 @@ lumen chat "用中文介绍一下 RAG"
 lumen rag-ingest ./docs/intro.txt        # 文档入向量库
 lumen rag-query "Lumen 支持哪些能力"      # 基于文档检索问答
 lumen agent-run "12*8+3 等于几？现在北京时间?"  # 智能体调用工具
-lumen serve                              # 启动 API :8000
+lumen rag-ingest-image ./photo.png       # 多模态：图片→描述→入 RAG
+lumen vision ./photo.png                 # 用视觉模型描述图片
+lumen models pull                        # 一键拉取默认 Ollama 模型
+lumen eval --rag ./samples/rag_qa.json   # 运行 RAG 评测基准
+lumen eval --agent ./samples/agent_qa.json  # 运行智能体评测基准
+lumen serve                              # 启动 API :8000（含 /metrics）
 lumen web                                # 启动 Web :7860
 ```
 
@@ -113,6 +125,8 @@ curl -X POST localhost:8000/rag/query -H 'Content-Type: application/json' \
 
 curl -X POST localhost:8000/agent/run -H 'Content-Type: application/json' \
   -d '{"question":"计算 (12+8)*3"}'
+
+curl localhost:8000/metrics              # 可观测：调用次数/延迟/错误/近似 token
 ```
 
 ### Python SDK
@@ -124,6 +138,22 @@ c = Container(Settings(llm_backend="mock"))   # 或 ollama / openai
 print(c.llm().complete("你好"))
 print(c.agent().run("计算 2**10"))
 ```
+
+### 评测基准（可复现）
+
+`lumen.eval` 提供基于规则的可复现评测：给定 QA（含期望关键词），检查答案是否命中关键词、检索是否命中上下文。
+
+```python
+from lumen.config import Container, Settings
+from lumen.eval import load_dataset, run_rag_eval
+
+c = Container(Settings(llm_backend="mock"))
+report = run_rag_eval(c.rag(), load_dataset("./samples/rag_qa.json"))
+print(report)            # [rag] 通过 5/5  准确率 100.0%
+print(report.to_dict())  # 含 accuracy / details
+```
+
+样例数据集位于 `samples/rag_qa.json` 与 `samples/agent_qa.json`，可自由扩展。
 
 ### 测试
 
@@ -139,6 +169,8 @@ pytest -m live            # 真实后端集成测试（需 Ollama）
 - **新增 LLM 后端**：继承 `lumen.llm.BaseLLM` 实现 `complete/chat`，在 `build_llm` 注册。
 - **新增工具**：继承 `lumen.tools.BaseTool` 实现 `run()`，用 `registry.register()` 注册即可被智能体调用。
 - **新增向量库**：继承 `lumen.vectorstore.BaseVectorStore`，在 `build_vectorstore` 切换。
+- **新增视觉模型**：继承 `lumen.multimodal.VisionLLM` 实现 `caption()`，在 `build_vision` 注册，即可接入 `RAG.ingest_image()` 多模态摄入。
+- **接入可观测**：Metrics 经 `MetricsWrapper` 自动采集，无需改业务代码；也可直接 `from lumen.observability import get_metrics` 读取/上报。
 
 ---
 

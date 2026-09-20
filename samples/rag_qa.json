@@ -1,0 +1,22 @@
+[
+  {
+    "question": "Lumen 的系统架构分为哪几层？",
+    "expect": "架构"
+  },
+  {
+    "question": "Lumen 的 RAG 管线包含哪些步骤？",
+    "expect": "检索"
+  },
+  {
+    "question": "Lumen 支持哪些 LLM 后端？",
+    "expect": "ollama"
+  },
+  {
+    "question": "Lumen 的智能体采用什么范式？",
+    "expect": "react"
+  },
+  {
+    "question": "如何把 Lumen 切换到 OpenAI 兼容后端？",
+    "expect": "环境变量"
+  }
+]

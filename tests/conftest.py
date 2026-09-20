@@ -10,6 +10,7 @@ import pytest
 from lumen.config import Container, Settings
 from lumen.embeddings import MockEmbedder
 from lumen.llm import MockLLM
+from lumen.multimodal import MockVision
 from lumen.vectorstore import FAISSVectorStore
 
 
@@ -20,6 +21,7 @@ def settings():
         embed_backend="mock",
         embed_dim=8,
         vectorstore_path="./data/test_vectorstore",
+        vision_backend="mock",
     )
 
 
@@ -29,4 +31,5 @@ def container(settings):
     c.override("llm", MockLLM(reply="42"))
     c.override("embedder", MockEmbedder(dim=8))
     c.override("vectorstore", FAISSVectorStore(dim=8))
+    c.override("vision", MockVision())
     return c

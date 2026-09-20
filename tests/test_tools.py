@@ -34,7 +34,7 @@ def test_registry():
 def test_build_registry_defaults():
     reg = build_registry()
     names = {t.name for t in reg.list()}
-    assert names == {"calculator", "datetime", "echo"}
+    assert names == {"calculator", "datetime", "echo", "web_search", "file_read"}
 
 
 def test_echo_tool():

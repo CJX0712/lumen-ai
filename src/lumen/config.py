@@ -42,6 +42,13 @@ class Settings(BaseSettings):
     max_agent_steps: int = 6
     log_level: str = "INFO"
 
+    # 可观测性
+    enable_metrics: bool = True
+
+    # 多模态（视觉语言模型）
+    vision_backend: str = "ollama"  # ollama | mock
+    ollama_vision_model: str = "llava"
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -62,9 +69,20 @@ class Container:
     def llm(self):
         if "llm" not in self._cache:
             from .llm import build_llm
+            from .observability import MetricsWrapper
 
-            self._cache["llm"] = build_llm(self.settings)
+            llm = build_llm(self.settings)
+            if getattr(self.settings, "enable_metrics", True):
+                llm = MetricsWrapper(llm)
+            self._cache["llm"] = llm
         return self._cache["llm"]
+
+    def vision(self):
+        if "vision" not in self._cache:
+            from .multimodal import build_vision
+
+            self._cache["vision"] = build_vision(self.settings)
+        return self._cache["vision"]
 
     def embedder(self):
         if "embedder" not in self._cache:
@@ -105,6 +123,7 @@ class Container:
                 self.settings.chunk_size,
                 self.settings.chunk_overlap,
                 self.settings.top_k,
+                self.vision(),
             )
         return self._cache["rag"]
 
