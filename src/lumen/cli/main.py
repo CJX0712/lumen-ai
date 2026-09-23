@@ -67,6 +67,7 @@ def evaluate(
     """运行评测基准，打印准确率报告。"""
     from ..eval import load_dataset, run_agent_eval, run_rag_eval
 
+    from ..api.server import create_app
     c = _container()
     if rag_dataset:
         report = run_rag_eval(c.rag(), load_dataset(rag_dataset))
@@ -94,6 +95,7 @@ def models_pull(
 @app.command()
 def serve(host: str = "0.0.0.0", port: int = 8000):
     """启动 FastAPI 服务 (默认 :8000)。"""
+    from ..api.server import create_app
     c = _container()
     uvicorn.run(create_app(c), host=host, port=port)
 
