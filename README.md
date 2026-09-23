@@ -1,5 +1,11 @@
 # Lumen · 模块化端到端可运行 AI 系统
 
+<p align="center">
+  <a href="https://github.com/CJX0712/lumen-ai/actions/workflows/ci.yml"><img src="https://github.com/CJX0712/lumen-ai/actions/workflows/ci.yml/badge.svg" alt="ci"></a>
+  <a href="https://github.com/CJX0712/lumen-ai/releases"><img src="https://img.shields.io/github/v/release/CJX0712/lumen-ai?sort=semver" alt="release"></a>
+  <img src="https://img.shields.io/badge/author-%E6%99%A8%E6%98%9F-1f6feb" alt="author">
+</p>
+
 > 复用业界领先开源成果，按单一职责原则划分 AI 功能模块，可插拔后端、独立验证、协同组成完整可运行链路。
 > 作者：**晨星**
 
