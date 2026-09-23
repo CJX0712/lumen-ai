@@ -26,8 +26,6 @@ idna==3.20
 iniconfig==2.3.0
 Jinja2==3.1.6
 jiter==0.17.0
-# Editable install with no version control (lumen-ai==0.1.0)
--e c:\users\administrator\workbuddy\2026-09-20-21-51-51\lumen-ai
 markdown-it-py==4.2.0
 MarkupSafe==3.0.3
 mdurl==0.1.2
